@@ -12,7 +12,7 @@ class UserRegistrationView(APIView):
     serializer_class = UserRegistrationSerializer
 
     @extend_schema(summary='Create a new user',
-                   description="This endpoint allows you to register a new user by providing a username, email, and password.",
+                   description="This endpoint allows to register a new user by providing a username, email, and password.",
                    request=UserRegistrationSerializer,
                    tags=["Authentication"]
                    )
@@ -36,7 +36,7 @@ class UserRegistrationView(APIView):
 class UserLoginView(APIView):
     serializer_class = UserLoginSerializer
     @extend_schema(summary='Login user',
-                   description="This endpoint allows login user by providing a username and password.",
+                   description="This endpoint allows to login user by providing a username and password.",
                    request=UserLoginSerializer,
                    tags=["Authentication"]
                    )
