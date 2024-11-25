@@ -1,77 +1,57 @@
-from rest_framework import viewsets
-from rest_framework.views import APIView
-from django.db.models import Sum, Avg, Count, F, Q
-from products.models import Product
+from drf_spectacular.utils import extend_schema
+from rest_framework.response import Response
+from rest_framework.viewsets import ModelViewSet
+from django.db.models import F, Sum, Value, DecimalField, Case, When
 from .models import CartItem
 from .serializers import CartItemSerializer
 
-class CartViewSet(viewsets.ModelViewSet):
+@extend_schema(summary='CRUD for cart items',
+                   description="This endpoints for viewing and editing items in the cart. Provides full CRUD functionality for the CartItem model.",
+                   request=CartItemSerializer,
+                   tags=["Cart"]
+                   )
+class CartViewSet(ModelViewSet):
     queryset = CartItem.objects.all()
     serializer_class = CartItemSerializer
 
     def get_queryset(self):
-        return self.queryset.filter(user=self.request.user)
+        queryset = CartItem.objects.filter(user=self.request.user) #filter by user
+        product_title = self.request.query_params.get('product_title', None)#filter by product_title
 
+        if product_title:
+            queryset = queryset.filter(product__title__icontains=product_title)  #search by product
 
-class ProductListView(APIView):
+        #queryset = queryset.annotate(total_price=F('quantity') * F('product__price'))
 
-    def get(self, request, *args, **kwargs):
-        # Фильтрация продуктов по определенным условиям
-        products = Product.objects.all()
-
-        # Фильтрация продуктов по названию, если параметр title передан в запросе
-        title = request.query_params.get('title', None)
-        if title:
-            products = products.filter(title__icontains=title)
-
-        # Фильтрация по диапазону цен
-        min_price = request.query_params.get('min_price', None)
-        max_price = request.query_params.get('max_price', None)
-        if min_price or max_price:
-            price_filters = {}
-            if min_price:
-                price_filters['price__gte'] = min_price
-            if max_price:
-                price_filters['price__lte'] = max_price
-            products = products.filter(**price_filters)
-
-        # Фильтрация по количеству на складе
-        stock_threshold = request.query_params.get('stock_threshold', None)
-        if stock_threshold:
-            products = products.filter(stock__gte=stock_threshold)
-
-        # Аннотирование дополнительных полей
-        # Сумма цен продуктов
-        products = products.annotate(total_price=Sum('price'))
-
-        # Средняя цена
-        products = products.annotate(average_price=Avg('price'))
-
-        # Общее количество продуктов
-        products = products.annotate(total_stock=Sum('stock'))
-
-        # Продукты с ценой больше, чем количество, умноженное на 10 (использование F)
-        products = products.annotate(price_to_stock_ratio=F('price') * F('stock'))
-
-        # Получение результата с использованием aggregate
-        aggregated_data = products.aggregate(
-            total_price=Sum('price'),
-            avg_price=Avg('price'),
-            total_stock=Sum('stock'),
-            total_products=Count('id')
+        queryset = queryset.annotate(
+            discount=Case(
+                When(product__price__gte=100, then=Value(0.10)),  # 10% discount
+                default=Value(0),  #without discount
+                output_field=DecimalField()
+            )
+        ).annotate(
+            discounted_price=F('product__price') - (F('product__price') * F('discount'))
+        ).annotate(
+            total_price=F('quantity') * F('discounted_price')  #recalculate total price
         )
+        return queryset
 
-        # Применение фильтрации с использованием Q выражений
-        # Например, продукты, которые либо дешевле 100, либо на складе меньше 10
-        filtered_products = products.filter(
-            Q(price__lte=100) | Q(stock__lt=10)
-        )
+    @extend_schema(summary='Total sum for products in cart',
+                   description="This endpoint shows the total sum in cart",
+                   request=CartItemSerializer,
+                   tags=["Cart"]
+                   )
 
-        # Сериализация продуктов
-        serializer = ProductSerializer(filtered_products, many=True)
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        total_sum = queryset.aggregate(total_sum=Sum(F('quantity') * F('product__price')))['total_sum']
 
-        # Ответ с данными
+        if total_sum is None:
+            total_sum = 0
+
+        serializer = self.get_serializer(queryset, many=True)
+
         return Response({
-            'products': serializer.data,
-            'aggregated_data': aggregated_data
+            'cart_items': serializer.data,
+            'total_sum': total_sum
         })
