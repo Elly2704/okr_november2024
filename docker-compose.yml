@@ -1,0 +1,27 @@
+version: '3.10'
+
+services:
+  django_drf:
+    build: .
+    container_name: django_drf
+    ports:
+      - "8007:8000"
+    volumes:
+      - .:/app
+    environment:
+      - DEBUG=True
+    depends_on:
+      - pgdb_drf
+
+  pgdb_drf:
+    image: postgres
+    container_name: pgdb_drf
+    env_file:
+      - .env
+    ports:
+      - "5437:5432"
+    volumes:
+     - pgdb_drf:/var/lib/postgresql/data
+
+volumes:
+  pgdb_drf:
