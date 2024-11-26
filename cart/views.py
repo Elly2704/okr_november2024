@@ -1,6 +1,6 @@
 from drf_spectacular.utils import extend_schema
 from rest_framework.response import Response
-from rest_framework.viewsets import ModelViewSet
+from rest_framework import viewsets
 from django.db.models import F, Sum, Value, DecimalField, Case, When
 from .models import CartItem
 from .serializers import CartItemSerializer
@@ -10,7 +10,7 @@ from .serializers import CartItemSerializer
                    request=CartItemSerializer,
                    tags=["Cart"]
                    )
-class CartViewSet(ModelViewSet):
+class CartViewSet(viewsets.ModelViewSet):
     queryset = CartItem.objects.all()
     serializer_class = CartItemSerializer
 

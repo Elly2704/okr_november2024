@@ -36,6 +36,8 @@ INSTALLED_APPS = [
     'cart.apps.CartConfig',
     'rest_framework',
     'drf_spectacular',
+    'oauth2_provider',
+
 ]
 
 MIDDLEWARE = [
@@ -126,34 +128,10 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# REST_FRAMEWORK = {
-#     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
-#     'PAGE_SIZE': 3,
-#     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
-#
-#     'DEFAULT_RENDERER_CLASSES': [
-#         'rest_framework.renderers.JSONRenderer',
-#         'rest_framework.renderers.BrowsableAPIRenderer',
-#     ],
-#     'DEFAULT_PARSER_CLASSES': [
-#         'rest_framework.parsers.JSONParser',
-#         'rest_framework.parsers.FormParser',
-#         'rest_framework.parsers.MultiPartParser',
-#     ],
-#     'DEFAULT_PERMISSION_CLASSES': [
-#         'rest_framework.permissions.AllowAny',
-#         #'rest_framework.permissions.IsAuthenticated', #django-oauth-toolkit
-#     ],
-#
-#     'DEFAULT_AUTHENTICATION_CLASSES': [
-#         #'rest_framework.authentication.TokenAuthentication',
-#         'rest_framework.authentication.BasicAuthentication',
-#         'rest_framework.authentication.SessionAuthentication',
-#         'rest_framework_simplejwt.authentication.JWTAuthentication',
-#         #'oauth2_provider.contrib.rest_framework.OAuth2Authentication',  # django-oauth-toolkit
-#         #'drf_social_oauth2.authentication.SocialAuthentication',
-#     ]
-# }
+AUTHENTICATION_CLASSES = [
+    'oauth2_provider.contrib.rest_framework.OAuth2Authentication',
+]
+
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_RENDERER_CLASSES': [
@@ -161,8 +139,22 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PARSER_CLASSES': [
         'rest_framework.parsers.JSONParser',
-    ]
+    ],
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.BasicAuthentication',
+        'oauth2_provider.contrib.rest_framework.OAuth2Authentication',  # django-oauth-toolkit
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.AllowAny',
+        'rest_framework.permissions.IsAuthenticated', # django-oauth-toolkit
+    ],
+
 }
+OAUTH2_PROVIDER = {
+    'SCOPES': {'read': 'Read scope', 'write': 'Write scope', 'groups': 'Access to your groups'}
+}
+OAUTH2_CLIENT_ID=os.environ.get('OAUTH2_CLIENT_ID')
+OAUTH2_CLIENT_SECRET=os.environ.get('OAUTH2_CLIENT_SECRET')
 
 SPECTACULAR_SETTINGS = {
     'TITLE': 'okr_november2024',

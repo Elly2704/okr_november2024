@@ -1,14 +1,13 @@
+from django.contrib.auth import authenticate
 from rest_framework import serializers
-from django.contrib.auth import get_user_model, authenticate
-
-User = get_user_model()
+from django.contrib.auth.models import User
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True,min_length=8)
 
     class Meta:
         model = User
-        fields = ['username', 'email', 'password']
+        fields = ['id','first_name', 'last_name', 'username', 'email', 'password', 'is_active']
 
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():
@@ -37,3 +36,5 @@ class UserLoginSerializer(serializers.Serializer):
             raise serializers.ValidationError("Account not active")
         data['user'] = user
         return data
+
+
