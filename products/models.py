@@ -1,7 +1,7 @@
 from django.db import models
 
 class Product(models.Model):
-    title = models.CharField(max_length=250)
+    title = models.CharField(max_length=250, unique=True)
     brand = models.CharField(max_length=250)
     description = models.TextField(blank=True)
     price = models.DecimalField(max_digits=7, decimal_places=2, default=100.00)

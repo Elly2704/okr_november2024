@@ -1,6 +1,6 @@
 from drf_spectacular.utils import extend_schema
 from rest_framework import viewsets
-from rest_framework.permissions import IsAdminUser
+from rest_framework.permissions import IsAdminUser, AllowAny
 from django.db.models import F
 from .models import Product
 from .serializers import ProductSerializer
@@ -23,6 +23,8 @@ class ProductViewSet(viewsets.ModelViewSet):
         def get_permissions(self):
             if self.action in ['create', 'update', 'partial_update', 'destroy']:
                 return [IsAdminUser()]
-            return super().get_permissions()
+            else:
+                return [AllowAny()]
+
 
 

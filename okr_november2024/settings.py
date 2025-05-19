@@ -50,6 +50,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+
 ROOT_URLCONF = 'okr_november2024.urls'
 
 TEMPLATES = [
@@ -126,11 +127,9 @@ STATIC_URL = 'static/'
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
+
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-AUTHENTICATION_CLASSES = [
-    'oauth2_provider.contrib.rest_framework.OAuth2Authentication',
-]
 
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
@@ -141,22 +140,80 @@ REST_FRAMEWORK = {
         'rest_framework.parsers.JSONParser',
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.BasicAuthentication',
-        'oauth2_provider.contrib.rest_framework.OAuth2Authentication',  # django-oauth-toolkit
+        'oauth2_provider.contrib.rest_framework.OAuth2Authentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.AllowAny',
-        'rest_framework.permissions.IsAuthenticated', # django-oauth-toolkit
+        'rest_framework.permissions.IsAuthenticated',
     ],
+}
 
-}
 OAUTH2_PROVIDER = {
-    'SCOPES': {'read': 'Read scope', 'write': 'Write scope', 'groups': 'Access to your groups'}
+    #'OAUTH2_BACKEND_CLASS': 'oauth2_provider.oauth2_backends.JSONOAuthLibCore',
+    'OAUTH2_BACKEND_CLASS': 'oauth2_provider.oauth2_backends.JSONOAuthLibCore',
+    'ACCESS_TOKEN_EXPIRE_SECONDS': 3600,
+    'AUTHORIZATION_CODE_EXPIRE_SECONDS': 600,
+    'REFRESH_TOKEN_EXPIRE_SECONDS': 86400,
+    'ALLOW_PKCE_GRANT_TYPE': True,
+    'DEFAULT_SCOPES': ['read', 'write'],
+    'ALLOWED_REDIRECT_URI_SCHEMES': ['http', 'https'],
+    'SCOPES': {
+        'read': 'Read scope',
+        'write': 'Write scope',
+        'groups': 'Access to your groups',
+    },
+    # 'GRANT_TYPES': [
+    #     'authorization_code',
+    #     'password',
+    #     'client_credentials',
+    #     'refresh_token',
+    # ],
 }
-OAUTH2_CLIENT_ID=os.environ.get('OAUTH2_CLIENT_ID')
-OAUTH2_CLIENT_SECRET=os.environ.get('OAUTH2_CLIENT_SECRET')
+
+OAUTH2_CLIENT_ID = os.environ.get('OAUTH2_CLIENT_ID')
+OAUTH2_CLIENT_SECRET = os.environ.get('OAUTH2_CLIENT_SECRET')
 
 SPECTACULAR_SETTINGS = {
     'TITLE': 'okr_november2024',
-    'DESCRIPTION': 'API documentation by Elvira Karpova.'
+    'DESCRIPTION': 'API documentation by Elvira Karpova.',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+    'COMPONENT_SPLIT_REQUEST': True,
+    'AUTHENTICATION_WHITELIST': [],
+    'SWAGGER_UI_OAUTH2_CONFIG': {
+        'clientId': os.environ.get('OAUTH2_CLIENT_ID'),
+        'clientSecret': os.environ.get('OAUTH2_CLIENT_SECRET'),
+        'appName': 'okr_november2024',
+        'scopes': ['read', 'write'],
+        'usePkceWithAuthorizationCodeGrant': True,
+    },
+    'SECURITY': [
+        {'BearerAuth': []},
+        {'OAuth2': []},
+    ],
+    'SECURITY_SCHEMES': {
+        'BearerAuth': {
+            'type': 'http',
+            'scheme': 'bearer',
+        },
+        'OAuth2': {
+            'type': 'oauth2',
+            'flows': {
+                'password': {
+                    'tokenUrl': 'http://127.0.0.1:8007/o/token/',
+                    'scopes': {
+                        'read': 'Read access',
+                        'write': 'Write access',
+                    },
+                },
+                'authorizationCode': {
+                    'authorizationUrl': 'http://127.0.0.1:8007/o/authorize/',
+                    'tokenUrl': 'http://127.0.0.1:8007/o/token/',
+                    'scopes': {
+                        'read': 'Read access',
+                        'write': 'Write access',
+                    },
+                },
+            },
+        },
+    },
 }

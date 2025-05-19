@@ -9,10 +9,15 @@ urlpatterns = [
     path('api/', include('products.urls')),
     path('api/', include('cart.urls')),
 
-    path('o/', include(base_urlpatterns)),
+    #path('o/', include(base_urlpatterns)),
+    path('o/', include('oauth2_provider.urls', namespace='oauth2_provider')),
+
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     # Swagger UI
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='docs'),
-]
+ ]
+
+
+
 
 

@@ -1,15 +1,17 @@
 import json
 from django.conf import settings
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
 from .serializers import UserLoginSerializer
 from oauth2_provider.views import TokenView
 from drf_spectacular.utils import extend_schema
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework import status
 from django.contrib.auth.models import User
 from .serializers import UserRegistrationSerializer
-
+from django.http import QueryDict
 
 class UserCreateApiView(APIView):
     permission_classes = [AllowAny]
@@ -56,8 +58,8 @@ class UserCreateApiView(APIView):
 
 
 class UserUpdateDeleteApiView(APIView):
-    permission_classes = [AllowAny]
     serializer_class = UserRegistrationSerializer
+    permission_classes = [IsAuthenticated]
 
     @extend_schema(summary='Update a new user',
                    description="This endpoint allows to update the user information.",
@@ -96,7 +98,51 @@ class UserUpdateDeleteApiView(APIView):
         return Response({'message': f'Deleted user with ID {pk}'}, status=status.HTTP_204_NO_CONTENT)
 
 
+
+# @method_decorator(csrf_exempt, name='dispatch')
+# class UserLoginView(APIView):
+#     serializer_class = UserLoginSerializer
+#     permission_classes = [AllowAny]
+#
+#     @extend_schema(summary='OAUTH2',
+#                    description="This endpoint provide access_token and refresh_token.",
+#                    request=UserLoginSerializer,
+#                    tags=["User CRUD"]
+#                    )
+#     def post(self, request):
+#         serializer = self.serializer_class(data=request.data)
+#         serializer.is_valid(raise_exception=True)
+#
+#         #user = serializer.validated_data['user']
+#
+#         data = {
+#             'grant_type': 'password',
+#             'username': request.data['username'],
+#             'password': request.data['password'],
+#             'client_id': settings.OAUTH2_CLIENT_ID,
+#             'client_secret': settings.OAUTH2_CLIENT_SECRET,
+#         }
+#
+#         # create TokenView
+#         token_view = TokenView.as_view()
+#         request._request.POST = data
+#         request._request.method = 'POST'
+#
+#         # get Token
+#         response = token_view(request._request)
+#
+#         if response.status_code == 200:
+#             response_data = json.loads(response.content)
+#             return Response(response_data, status=status.HTTP_200_OK)
+#         else:
+#             response_data = json.loads(response.content)
+#             return Response(response_data, status=response.status_code)
+#
+
+
+@method_decorator(csrf_exempt, name='dispatch')
 class UserLoginView(APIView):
+    permission_classes = [AllowAny]
     serializer_class = UserLoginSerializer
 
     @extend_schema(summary='OAUTH2',
@@ -105,26 +151,30 @@ class UserLoginView(APIView):
                    tags=["User CRUD"]
                    )
     def post(self, request):
+        print('1')
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
+        print('2')
 
-        #user = serializer.validated_data['user']
-
-        data = {
+        data = QueryDict('', mutable=True)
+        data.update({
             'grant_type': 'password',
-            'username': request.data['username'],
-            'password': request.data['password'],
+            'username': request.data.get('username'),
+            'password': request.data.get('password'),
             'client_id': settings.OAUTH2_CLIENT_ID,
             'client_secret': settings.OAUTH2_CLIENT_SECRET,
-        }
+        })
+        print('3')
 
-        # create TokenView
         token_view = TokenView.as_view()
+        print('4')
         request._request.POST = data
+        request._request.META['CONTENT_TYPE'] = 'application/x-www-form-urlencoded'
         request._request.method = 'POST'
+        print('5')
 
-        # get Token
         response = token_view(request._request)
+        print('6')
 
         if response.status_code == 200:
             response_data = json.loads(response.content)
