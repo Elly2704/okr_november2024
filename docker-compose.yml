@@ -4,12 +4,14 @@ services:
   django_drf:
     build: .
     container_name: django_drf
+    command: python manage.py runserver 0.0.0.0:8000
+
     ports:
       - "8007:8000"
     volumes:
       - .:/app
-    environment:
-      - DEBUG=True
+    env_file:
+      - .env
     depends_on:
       - pgdb_drf
 

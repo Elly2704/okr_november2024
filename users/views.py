@@ -1,9 +1,14 @@
 import json
+import urllib.parse
+
 from django.conf import settings
+from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from .serializers import UserLoginSerializer
 from oauth2_provider.views import TokenView
+from oauth2_provider.models import AccessToken, Application
+# from oauth2_provider.mo
 from drf_spectacular.utils import extend_schema
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -182,3 +187,108 @@ class UserLoginView(APIView):
         else:
             response_data = json.loads(response.content)
             return Response(response_data, status=response.status_code)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class UserLoginView(APIView):
+    permission_classes = [AllowAny]
+    serializer_class = UserLoginSerializer
+
+    @extend_schema(summary='OAUTH2',
+                   description="This endpoint provide access_token and refresh_token.",
+                   request=UserLoginSerializer,
+                   tags=["User CRUD"]
+                   )
+    def post(self, request):
+        """
+        Application should already exist. Track application via it's name
+
+        app = Application.objects.create(
+            name="MyFrontend",
+            user=admin,  # the owner of the application
+            client_type=Application.CLIENT_CONFIDENTIAL,
+            authorization_grant_type=Application.GRANT_PASSWORD,
+        )
+        Application = okr_november2024_1
+
+        kkBgdQwu9bruSaXp5tpDFwzGvUCYgD1p8xWS4XdaVeaZOccXuHquixo7w3IuqK0duP1FRnY59cGWAYAKdoFuD13E57MeKKfWYz3XIa4ouZjsmSFuWSWXXBDk6Bsbhc6o
+        :param request:
+        :return:
+        """
+        from django.contrib.auth import authenticate
+        from django.http import HttpRequest
+        import base64
+        from django.test import RequestFactory
+
+        APPLICATION_NAME: str = 'okr_november2024'
+
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user = serializer.validated_data.get("user")
+        # user = authenticate(username=serializer.validated_data.get('username'), password=serializer.validated_data.get('password'))
+
+        # Get authenticated user from existing serializer
+        print("serializer user", serializer.validated_data.get("user"))
+
+        app = Application.objects.filter(name=APPLICATION_NAME)
+        if app.exists() is False:
+            return Response(data={"non_field_errors": ["Missing auth Application"]}, status=400)
+        app = app.first()
+
+        token = AccessToken.objects.filter(user=user)
+        if token.exists() is False:
+
+            data = {
+                'grant_type': 'password',
+                'username': serializer.validated_data.get('username'),
+                'password': serializer.validated_data.get('password'),
+                'client_id': app.client_id,
+                'client_secret': app.client_secret,
+            }
+
+            mock_request = HttpRequest()
+            mock_request.user = user
+            mock_request.method = 'POST'
+            mock_request.POST = data
+            request.session.user = user
+            # mock_request.session = request.session
+
+            # base64_credentials = base64.b64encode(f"{app.client_id}:{app.client_secret}".encode()).decode()
+            # mock_request.META['HTTP_AUTHORIZATION'] = f'Basic {base64_credentials}'
+
+            # mock_request.META = {
+            #     'CONTENT_TYPE': 'application/x-www-form-urlencoded',
+            # }
+
+            token_view_response = TokenView.as_view()(mock_request)
+
+            # fac = RequestFactory()
+            # token_request = fac.post('/o/token/', data, user=user)
+            # token_request.user = user
+            # print(token_request)
+            # token_view_response = TokenView.as_view()(token_request)
+
+
+        else:
+            token_view_response = Response({
+                'token': token.first().token,
+                'refresh_token': token.first().refresh_token.token,
+            })
+
+            if serializer.validated_data.get('is_refresh') is True:
+                data = {
+                    'grant_type': 'refresh_token',
+                    'client_id': app.client_id,
+                    'client_secret': app.client_secret,
+                    'refresh_token': token.first().refresh_token.token
+                }
+
+                mock_request = HttpRequest()
+                mock_request.user = user
+                mock_request.method = 'POST'
+                mock_request.POST = data
+                request.session.user = user
+
+                token_view_response = TokenView.as_view()(mock_request)
+
+        return token_view_response

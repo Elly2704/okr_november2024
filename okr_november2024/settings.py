@@ -1,9 +1,7 @@
 import os
 from pathlib import Path
-from decouple import config
-from dotenv import load_dotenv
 
-load_dotenv()
+from decouple import config
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -17,10 +15,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-tq(95gx-&2y-!==pxlw+y*)g-##$4493hj-vzuuc&lg2*0dce='
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = config("DEBUG", default=True, cast=bool)
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
+# OAUTH2_CLIENT_ID = os.environ.get('OAUTH2_CLIENT_ID')
+# print("OAUTH2_CLIENT_ID", OAUTH2_CLIENT_ID)
+# OAUTH2_CLIENT_SECRET = os.environ.get('OAUTH2_CLIENT_SECRET')
+# print("OAUTH2_CLIENT_SECRET", OAUTH2_CLIENT_SECRET)
 
 # Application definition
 
@@ -31,25 +33,33 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+
+    'oauth2_provider',
+    'corsheaders',
+    'rest_framework',
+
+    'drf_spectacular',
+
     'users.apps.UsersConfig',
     'products.apps.ProductsConfig',
     'cart.apps.CartConfig',
-    'rest_framework',
-    'drf_spectacular',
-    'oauth2_provider',
-
 ]
-
+AUTHENTICATION_BACKENDS = [
+    'oauth2_provider.backends.OAuth2Backend',
+    'django.contrib.auth.backends.ModelBackend',  # Django Admin access
+]
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'oauth2_provider.middleware.OAuth2TokenMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-]
 
+]
 
 ROOT_URLCONF = 'okr_november2024.urls'
 
@@ -107,7 +117,7 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
-# Internationalization
+# Internationalization.
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 
 LANGUAGE_CODE = 'en-us'
@@ -130,6 +140,7 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+CORS_ORIGIN_ALLOW_ALL = True
 
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
@@ -141,6 +152,7 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'oauth2_provider.contrib.rest_framework.OAuth2Authentication',
+        'rest_framework.authentication.SessionAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
@@ -149,7 +161,6 @@ REST_FRAMEWORK = {
 
 OAUTH2_PROVIDER = {
     #'OAUTH2_BACKEND_CLASS': 'oauth2_provider.oauth2_backends.JSONOAuthLibCore',
-    'OAUTH2_BACKEND_CLASS': 'oauth2_provider.oauth2_backends.JSONOAuthLibCore',
     'ACCESS_TOKEN_EXPIRE_SECONDS': 3600,
     'AUTHORIZATION_CODE_EXPIRE_SECONDS': 600,
     'REFRESH_TOKEN_EXPIRE_SECONDS': 86400,
@@ -161,16 +172,7 @@ OAUTH2_PROVIDER = {
         'write': 'Write scope',
         'groups': 'Access to your groups',
     },
-    # 'GRANT_TYPES': [
-    #     'authorization_code',
-    #     'password',
-    #     'client_credentials',
-    #     'refresh_token',
-    # ],
 }
-
-OAUTH2_CLIENT_ID = os.environ.get('OAUTH2_CLIENT_ID')
-OAUTH2_CLIENT_SECRET = os.environ.get('OAUTH2_CLIENT_SECRET')
 
 SPECTACULAR_SETTINGS = {
     'TITLE': 'okr_november2024',
@@ -178,36 +180,16 @@ SPECTACULAR_SETTINGS = {
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
     'COMPONENT_SPLIT_REQUEST': True,
-    'AUTHENTICATION_WHITELIST': [],
-    'SWAGGER_UI_OAUTH2_CONFIG': {
-        'clientId': os.environ.get('OAUTH2_CLIENT_ID'),
-        'clientSecret': os.environ.get('OAUTH2_CLIENT_SECRET'),
-        'appName': 'okr_november2024',
-        'scopes': ['read', 'write'],
-        'usePkceWithAuthorizationCodeGrant': True,
-    },
-    'SECURITY': [
-        {'BearerAuth': []},
-        {'OAuth2': []},
-    ],
+
+    # This ensures OAuth2 security shows up
+    'SECURITY': [{'OAuth2PasswordBearer': []}],
+
     'SECURITY_SCHEMES': {
-        'BearerAuth': {
-            'type': 'http',
-            'scheme': 'bearer',
-        },
-        'OAuth2': {
+        'OAuth2PasswordBearer': {
             'type': 'oauth2',
             'flows': {
                 'password': {
-                    'tokenUrl': 'http://127.0.0.1:8007/o/token/',
-                    'scopes': {
-                        'read': 'Read access',
-                        'write': 'Write access',
-                    },
-                },
-                'authorizationCode': {
-                    'authorizationUrl': 'http://127.0.0.1:8007/o/authorize/',
-                    'tokenUrl': 'http://127.0.0.1:8007/o/token/',
+                    'tokenUrl': '/o/token/',
                     'scopes': {
                         'read': 'Read access',
                         'write': 'Write access',
@@ -215,5 +197,56 @@ SPECTACULAR_SETTINGS = {
                 },
             },
         },
+    },
+}
+
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+
+    'formatters': {
+        'standard': {
+            'format': '%(asctime)s %(levelname)s %(name)s %(funcName)s %(lineno)d %(message)s',
+        },
+        'verbose': {
+            'format': '%(levelname)s %(asctime)s %(module)s %(funcName)s %(lineno)d %(process)d %(thread)d %(message)s',
+        },
+    },
+    'handlers': {
+            # Console handler for Heroku logs
+            'console': {
+                'level': 'DEBUG',  # Set to 'INFO' or 'WARNING' for production
+                'class': 'logging.StreamHandler',
+                'formatter': 'verbose',
+            },
+        },
+    'root': {
+        'handlers': ['console'],
+        'level': 'DEBUG',  # Set to 'WARNING' or 'ERROR' to reduce log verbosity
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'django.request': {
+            'handlers': ['console'],
+            'level': 'ERROR',  # Logs only errors from requests
+            'propagate': False,
+        },
+        'django.db.backends': {
+            'handlers': ['console'],
+            'level': 'ERROR',  # Logs only database errors
+            'propagate': False,
+        },
+        **{
+            app_name: {
+                'handlers': ['console'],
+                'level': 'INFO',
+                'propagate': False,
+            } for app_name in ["okr_november2024", "users"]
+        }
     },
 }
