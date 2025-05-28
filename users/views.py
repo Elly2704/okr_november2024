@@ -127,11 +127,11 @@ class UserLoginView(APIView):
 
         existing_tokens = AccessToken.objects.filter(user=user)
 
-        # Создаем QueryDict для POST-запроса к TokenView
+        # Create QueryDict for POST to TokenView
         post_data = QueryDict(mutable=True)
 
         if serializer.validated_data.get('is_refresh'):
-            # Если обновляем токен
+            # Refresh token
             token = existing_tokens.first()
             post_data.update({
                 'grant_type': 'refresh_token',
@@ -140,7 +140,7 @@ class UserLoginView(APIView):
                 'refresh_token': token.refresh_token.token,
             })
         else:
-            # Если новый логин по паролю
+            # If new login by password
             post_data.update({
                 'grant_type': 'password',
                 'username': serializer.validated_data.get('username'),
@@ -149,12 +149,12 @@ class UserLoginView(APIView):
                 'client_secret': app.client_secret,
             })
 
-        # Создаем имитацию запроса для передачи в TokenView
+        # request to TokenView
         token_request = HttpRequest()
         token_request.method = 'POST'
         token_request.POST = post_data
 
-        # Вызываем TokenView, чтобы получить токены
+        # Get token
         token_response = TokenView.as_view()(token_request)
         response_status = token_response.status_code
         response_data = json.loads(token_response.content)
