@@ -2,7 +2,7 @@ import json
 
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
-from django.http import HttpRequest
+from django.http import HttpRequest, QueryDict
 from django.contrib.auth.models import User
 
 from oauth2_provider.views import TokenView
@@ -102,21 +102,13 @@ class UserUpdateDeleteApiView(APIView):
 
 
 @method_decorator(csrf_exempt, name='dispatch')
-class CustomTokenView(TokenView):
-    """
-    Custom TokenView hidden from Swagger.
-    """
-    pass
-
-
-@method_decorator(csrf_exempt, name='dispatch')
 class UserLoginView(APIView):
     permission_classes = [AllowAny]
     serializer_class = UserLoginSerializer
 
     @swagger_auto_schema(
-        operation_summary='OAUTH2',
-        operation_description="This endpoint provides access_token and refresh_token.",
+        operation_summary='OAUTH2 Token obtain',
+        operation_description="Get access and refresh tokens by username and password or refresh token.",
         request_body=UserLoginSerializer,
         tags=["User CRUD"],
         responses={200: 'Token response'}
@@ -126,8 +118,8 @@ class UserLoginView(APIView):
 
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = serializer.validated_data.get("user")
 
+        user = serializer.validated_data.get("user")
         app_qs = Application.objects.filter(name=APPLICATION_NAME)
         if not app_qs.exists():
             return Response({"non_field_errors": ["Missing auth Application"]}, status=status.HTTP_400_BAD_REQUEST)
@@ -135,48 +127,36 @@ class UserLoginView(APIView):
 
         existing_tokens = AccessToken.objects.filter(user=user)
 
-        if not existing_tokens.exists():
-            data = {
+        # Создаем QueryDict для POST-запроса к TokenView
+        post_data = QueryDict(mutable=True)
+
+        if serializer.validated_data.get('is_refresh'):
+            # Если обновляем токен
+            token = existing_tokens.first()
+            post_data.update({
+                'grant_type': 'refresh_token',
+                'client_id': app.client_id,
+                'client_secret': app.client_secret,
+                'refresh_token': token.refresh_token.token,
+            })
+        else:
+            # Если новый логин по паролю
+            post_data.update({
                 'grant_type': 'password',
                 'username': serializer.validated_data.get('username'),
                 'password': serializer.validated_data.get('password'),
                 'client_id': app.client_id,
                 'client_secret': app.client_secret,
-            }
+            })
 
-            mock_request = HttpRequest()
-            mock_request.user = user
-            mock_request.method = 'POST'
-            mock_request.POST = data
-            request.session.user = user
+        # Создаем имитацию запроса для передачи в TokenView
+        token_request = HttpRequest()
+        token_request.method = 'POST'
+        token_request.POST = post_data
 
-            token_response = TokenView.as_view()(mock_request)
-            response_status = token_response.status_code
-            response_data = json.loads(token_response.content)
-            return Response(response_data, status=response_status)
+        # Вызываем TokenView, чтобы получить токены
+        token_response = TokenView.as_view()(token_request)
+        response_status = token_response.status_code
+        response_data = json.loads(token_response.content)
 
-        token = existing_tokens.first()
-
-        if serializer.validated_data.get('is_refresh'):
-            data = {
-                'grant_type': 'refresh_token',
-                'client_id': app.client_id,
-                'client_secret': app.client_secret,
-                'refresh_token': token.refresh_token.token
-            }
-
-            mock_request = HttpRequest()
-            mock_request.user = user
-            mock_request.method = 'POST'
-            mock_request.POST = data
-            request.session.user = user
-
-            token_response = TokenView.as_view()(mock_request)
-            response_status = token_response.status_code
-            response_data = json.loads(token_response.content)
-            return Response(response_data, status=response_status)
-
-        return Response({
-            'token': token.token,
-            'refresh_token': token.refresh_token.token,
-        })
+        return Response(response_data, status=response_status)
