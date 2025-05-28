@@ -3,10 +3,8 @@ from pathlib import Path
 
 from decouple import config
 
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
@@ -18,11 +16,6 @@ SECRET_KEY = 'django-insecure-tq(95gx-&2y-!==pxlw+y*)g-##$4493hj-vzuuc&lg2*0dce=
 DEBUG = config("DEBUG", default=True, cast=bool)
 
 ALLOWED_HOSTS = ['*']
-
-# OAUTH2_CLIENT_ID = os.environ.get('OAUTH2_CLIENT_ID')
-# print("OAUTH2_CLIENT_ID", OAUTH2_CLIENT_ID)
-# OAUTH2_CLIENT_SECRET = os.environ.get('OAUTH2_CLIENT_SECRET')
-# print("OAUTH2_CLIENT_SECRET", OAUTH2_CLIENT_SECRET)
 
 # Application definition
 
@@ -38,27 +31,28 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
 
-    'drf_spectacular',
+    'drf_yasg',
 
     'users.apps.UsersConfig',
     'products.apps.ProductsConfig',
     'cart.apps.CartConfig',
 ]
+
 AUTHENTICATION_BACKENDS = [
     'oauth2_provider.backends.OAuth2Backend',
-    'django.contrib.auth.backends.ModelBackend',  # Django Admin access
+    'django.contrib.auth.backends.ModelBackend',
 ]
+
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
+    'oauth2_provider.middleware.OAuth2TokenMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'oauth2_provider.middleware.OAuth2TokenMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-
 ]
 
 ROOT_URLCONF = 'okr_november2024.urls'
@@ -66,8 +60,7 @@ ROOT_URLCONF = 'okr_november2024.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates']
-        ,
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -82,10 +75,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'okr_november2024.wsgi.application'
 
-
-# Database
-# https://docs.djangoproject.com/en/5.1/ref/settings/#databases
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
@@ -96,10 +85,6 @@ DATABASES = {
         'PORT': os.environ.get('POSTGRES_PORT', '5432'),
     }
 }
-
-
-# Password validation
-# https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -116,10 +101,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
-# Internationalization.
-# https://docs.djangoproject.com/en/5.1/topics/i18n/
-
 LANGUAGE_CODE = 'en-us'
 
 TIME_ZONE = 'UTC'
@@ -128,22 +109,13 @@ USE_I18N = True
 
 USE_TZ = True
 
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.1/howto/static-files/
-
 STATIC_URL = 'static/'
-
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
-
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CORS_ORIGIN_ALLOW_ALL = True
 
 REST_FRAMEWORK = {
-    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
     ],
@@ -160,7 +132,6 @@ REST_FRAMEWORK = {
 }
 
 OAUTH2_PROVIDER = {
-    #'OAUTH2_BACKEND_CLASS': 'oauth2_provider.oauth2_backends.JSONOAuthLibCore',
     'ACCESS_TOKEN_EXPIRE_SECONDS': 3600,
     'AUTHORIZATION_CODE_EXPIRE_SECONDS': 600,
     'REFRESH_TOKEN_EXPIRE_SECONDS': 86400,
@@ -174,32 +145,20 @@ OAUTH2_PROVIDER = {
     },
 }
 
-SPECTACULAR_SETTINGS = {
-    'TITLE': 'okr_november2024',
-    'DESCRIPTION': 'API documentation by Elvira Karpova.',
-    'VERSION': '1.0.0',
-    'SERVE_INCLUDE_SCHEMA': False,
-    'COMPONENT_SPLIT_REQUEST': True,
-
-    # This ensures OAuth2 security shows up
-    'SECURITY': [{'OAuth2PasswordBearer': []}],
-
-    'SECURITY_SCHEMES': {
-        'OAuth2PasswordBearer': {
+SWAGGER_SETTINGS = {
+    'USE_SESSION_AUTH': False,
+    'SECURITY_DEFINITIONS': {
+        'OAuth2Password': {
             'type': 'oauth2',
-            'flows': {
-                'password': {
-                    'tokenUrl': '/o/token/',
-                    'scopes': {
-                        'read': 'Read access',
-                        'write': 'Write access',
-                    },
-                },
+            'flow': 'password',
+            'tokenUrl': '/o/token/',
+            'scopes': {
+                'read': 'Read access',
+                'write': 'Write access',
             },
-        },
+        }
     },
 }
-
 
 LOGGING = {
     'version': 1,
@@ -214,16 +173,15 @@ LOGGING = {
         },
     },
     'handlers': {
-            # Console handler for Heroku logs
-            'console': {
-                'level': 'DEBUG',  # Set to 'INFO' or 'WARNING' for production
-                'class': 'logging.StreamHandler',
-                'formatter': 'verbose',
-            },
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
         },
+    },
     'root': {
         'handlers': ['console'],
-        'level': 'DEBUG',  # Set to 'WARNING' or 'ERROR' to reduce log verbosity
+        'level': 'DEBUG',
     },
     'loggers': {
         'django': {
@@ -233,12 +191,12 @@ LOGGING = {
         },
         'django.request': {
             'handlers': ['console'],
-            'level': 'ERROR',  # Logs only errors from requests
+            'level': 'ERROR',
             'propagate': False,
         },
         'django.db.backends': {
             'handlers': ['console'],
-            'level': 'ERROR',  # Logs only database errors
+            'level': 'ERROR',
             'propagate': False,
         },
         **{
