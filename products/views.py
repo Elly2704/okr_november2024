@@ -17,10 +17,10 @@ class ProductViewSet(viewsets.ModelViewSet):
         queryset = queryset.annotate(stock_amount=F('stock')).filter(stock_amount__gt=0)
         return queryset
 
-    def get_permissions(self):
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
-            return [IsAdminUser()]
-        return [AllowAny()]
+    # def get_permissions(self):
+    #     if self.action in ['create', 'update', 'partial_update', 'destroy']:
+    #         return [IsAdminUser()]
+    #     return [AllowAny()]
 
     @swagger_auto_schema(
         operation_summary="List products",

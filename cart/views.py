@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from rest_framework.response import Response
 from rest_framework import viewsets
 from django.db.models import F, Sum, Value, DecimalField, Case, When
@@ -85,6 +87,26 @@ class CartViewSet(viewsets.ModelViewSet):
     )
     def partial_update(self, request, *args, **kwargs):
         return super().partial_update(request, *args, **kwargs)
+
+    @swagger_auto_schema(
+        operation_summary="Delete cart item",
+        operation_description="Delete a cart item by ID.",
+        tags=["Cart"],
+    )
+    def perform_update(self, serializer):
+        instance = serializer.save()
+
+        # Recalculate logic fo discount
+        discount = 0.10 if instance.product.price >= 100 else 0
+        discount_decimal = Decimal(str(discount))
+        discounted_price = instance.product.price * (Decimal('1') - discount_decimal)
+        total_price = discounted_price * instance.quantity
+
+        # Save to DB
+        instance.discount = discount
+        instance.discounted_price = discounted_price
+        instance.total_price = total_price
+        instance.save()
 
     @swagger_auto_schema(
         operation_summary="Delete cart item",
